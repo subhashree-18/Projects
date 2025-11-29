@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 from sklearn.cluster import KMeans
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
 UPLOAD_FOLDER = 'static/uploads'
 OUTPUT_FOLDER = 'static/output'
@@ -17,13 +17,15 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 def extract_colors(image_path, num_colors=8):
     img = Image.open(image_path)
-    img = img.resize((200, 200))  # Resize to reduce computation
-    img_data = np.array(img).reshape(-1, 3)  # Convert to (N,3) array
+    img = img.resize((200, 200))
+    img_data = np.array(img).reshape(-1, 3)
 
     kmeans = KMeans(n_clusters=num_colors, random_state=42, n_init=10)
     kmeans.fit(img_data)
@@ -32,6 +34,7 @@ def extract_colors(image_path, num_colors=8):
     hex_colors = ['#{:02x}{:02x}{:02x}'.format(*color) for color in colors]
 
     return colors, hex_colors
+
 
 def generate_color_palette(colors, output_path):
     img = Image.new("RGB", (400, 50), "white")
@@ -42,6 +45,7 @@ def generate_color_palette(colors, output_path):
         draw.rectangle([i * block_size, 0, (i + 1) * block_size, 50], fill=tuple(color))
 
     img.save(output_path)
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -65,5 +69,12 @@ def index():
 
     return render_template("index.html")
 
-if __name__ == "__main__":
-    app.run(debug=True)
+
+# Vercel handler (Important)
+def handler(event, context):
+    return app
+
+
+# Also expose app for Vercel compatibility
+# vercel-python looks for "app"
+app = app
